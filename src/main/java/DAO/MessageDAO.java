@@ -12,18 +12,22 @@ public class MessageDAO {
     //Creates a message based on the input parameters. To be called when the POST /messages is hit
     // ACCEPTS: posted_by, message_text, and time_posted_epoch parameters
     // RETURNS: The message created if successful. NULL if unsuccessful
-    public Message createMessage(int posted_by, String message_text, Long time_posted_epoch){
+    public Message createMessage(Message message){
         Connection connection = ConnectionUtil.getConnection();
         try {
             //sets up the prepared statement with the SQL string and the id and new message passed in to the method
             String sql = "INSERT INTO message (posted_by, message_text, time_posted_epoch) VALUES (?,?,?)";
-            PreparedStatement preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setInt(1,posted_by);
-            preparedStatement.setString(2, message_text);
-            preparedStatement.setLong(3,time_posted_epoch);
+            PreparedStatement preparedStatement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            preparedStatement.setInt(1,message.posted_by);
+            preparedStatement.setString(2, message.message_text);
+            preparedStatement.setLong(3,message.time_posted_epoch);
 
             preparedStatement.executeUpdate();
-            return new Message(posted_by,message_text,time_posted_epoch);
+            ResultSet pkeyResultSet = preparedStatement.getGeneratedKeys();
+            if(pkeyResultSet.next()){
+                int generated_message_id = (int) pkeyResultSet.getLong(1);
+                return new Message(generated_message_id, message.getPosted_by(), message.getMessage_text(), message.getTime_posted_epoch());
+            }
             
         }catch(SQLException e){
             System.out.println(e.getMessage());
@@ -41,7 +45,7 @@ public class MessageDAO {
             PreparedStatement preparedStatement = connection.prepareStatement(sql);
             ResultSet rs = preparedStatement.executeQuery();
             while(rs.next()){
-                Message message = new Message(rs.getInt("posted_by"), rs.getString("message_text"), rs.getLong("time_posted_epoch"));
+                Message message = new Message(rs.getInt("message_id"),rs.getInt("posted_by"), rs.getString("message_text"), rs.getLong("time_posted_epoch"));
                 messages.add(message);
             }
         }catch(SQLException e){
@@ -62,7 +66,12 @@ public class MessageDAO {
 
             ResultSet rs = preparedStatement.executeQuery();
             while(rs.next()){
-                Message message = new Message(rs.getInt("posted_by"), rs.getString("message_text"), rs.getLong("time_posted_epoch"));
+                Message message = new Message(
+                    rs.getInt("message_id"),
+                    rs.getInt("posted_by"), 
+                    rs.getString("message_text"), 
+                    rs.getLong("time_posted_epoch")
+                    );
                 messages.add(message);
             }
         }catch(SQLException e){
@@ -85,6 +94,7 @@ public class MessageDAO {
             ResultSet rs = preparedStatement.executeQuery();
             while(rs.next()){
                 Message message = new Message(
+                                        rs.getInt("message_id"),
                                         rs.getInt("posted_by"), 
                                         rs.getString("message_text"), 
                                         rs.getLong("time_posted_epoch")
